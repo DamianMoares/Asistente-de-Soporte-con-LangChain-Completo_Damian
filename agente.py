@@ -4,7 +4,8 @@ import os
 import json
 from typing import TypedDict, Annotated, Sequence
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
-from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings # Cambiado a Google
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_core.tools import tool
 from langgraph.graph import StateGraph, END
@@ -64,14 +65,14 @@ tools = [buscar_pedido, calcular_reembolso, escalar_a_humano]
 class EstadoSoporte(TypedDict):
     mensajes: Annotated[Sequence[BaseMessage], operator.add]
 
-# Conectamos con los mismos embeddings gratuitos de Google
-embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+# Embeddings locales gratuitos (offline, sin API key)
+embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 chroma_path = os.path.join(BASE_DIR, "chroma_db")
 vectordb = Chroma(persist_directory=chroma_path, embedding_function=embeddings)
 retriever = vectordb.as_retriever(search_kwargs={"k": 3})
 
-# Usamos Gemini 1.5 Flash, excelente con herramientas y 100% gratuito en AI Studio
-modelo = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0)
+# Usamos Gemini 2.0 Flash (gratuito en AI Studio)
+modelo = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0)
 modelo_con_tools = modelo.bind_tools(tools)
 
 def nodo_llm(estado: EstadoSoporte) -> dict:
