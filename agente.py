@@ -8,7 +8,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_core.tools import tool
-from langgraph.graph import StateGraph  # Quitamos END de aquí para evitar conflictos
+from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
 from langgraph.checkpoint.memory import MemorySaver
 from dotenv import load_dotenv
@@ -82,12 +82,11 @@ Si no tienes información, dilo claramente. No inventes datos.""")
     respuesta = modelo_con_tools.invoke(mensajes_con_system)
     return {"mensajes": [respuesta]}
 
-# LINEA 72 CORREGIDA: Devolvemos la cadena de texto estándar de finalización
 def debe_continuar(estado: EstadoSoporte) -> str:
     ultimo = estado["mensajes"][-1]
     if hasattr(ultimo, "tool_calls") and ultimo.tool_calls:
         return "usar_tool"
-    return "__end__" 
+    return END
 
 nodo_tools = ToolNode(tools)
 
@@ -95,17 +94,7 @@ grafo = StateGraph(EstadoSoporte)
 grafo.add_node("llm", nodo_llm)
 grafo.add_node("tools", nodo_tools)
 grafo.set_entry_point("llm")
-
-# LÍNEAS 87 Y 94 CORREGIDAS: Mapeamos explícitamente a la cadena de finalización estándar
-grafo.add_conditional_edges(
-    "llm", 
-    debe_continuar, 
-    {
-        "usar_tool": "tools", 
-        "__end__": "__end__"
-    }
-)
-
+grafo.add_conditional_edges("llm", debe_continuar, {"usar_tool": "tools", END: END})
 grafo.add_edge("tools", "llm")
 
 # Criterio 4: Guardado de memoria por sesión (MemorySaver)
